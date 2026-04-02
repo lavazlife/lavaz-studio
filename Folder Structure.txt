@@ -1,0 +1,8 @@
+lavaz-studio/
+├── index.html                 ← UPDATED with PWA lines ✓
+├── style.css                  ← From previous response
+├── app.js                     ← From previous response
+├── manifest.json              ← From previous response
+├── sw.js                      ← From previous response
+├── README.md                  ← From previous response
+└── assets/                    ← Your images/videos renamed

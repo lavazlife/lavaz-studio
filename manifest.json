@@ -1,0 +1,26 @@
+{
+  "name": "Lavaz Studio",
+  "short_name": "LavazStudio",
+  "description": "Build complete web apps from minimal input. Powered by Lavaz Life Designs™",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#00ffff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "assets/logo-ln-circle.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/logo-lld-neon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["developer-tools", "productivity"],
+  "lang": "en-US",
+  "scope": "./"
+}
