@@ -1,13 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const appForm = document.getElementById('appForm');
-    const assetGrid = document.getElementById('assetGrid');
-    const previewFrame = document.getElementById('previewFrame');
-    const downloadBtn = document.getElementById('downloadBtn');
+    const assetGrid      = document.getElementById('assetGrid');
+    const assetUpload    = document.getElementById('assetUpload');
+    const previewFrame   = document.getElementById('previewFrame');
+    const downloadBtn    = document.getElementById('downloadBtn');
+    const downloadFormat = document.getElementById('downloadFormat');
     const downloadStatus = document.getElementById('downloadStatus');
-    const generateBtn = document.getElementById('generateBtn');
+    const generateBtn    = document.getElementById('generateBtn');
+    const loadPreviousBtn = document.getElementById('loadPreviousBtn');
+    const aiGenerateBtn  = document.getElementById('aiGenerateBtn');
+    const aiKey          = document.getElementById('aiKey');
 
-    // Load assets preview
-    const assets = [
+    // Default demo assets (unchanged)
+    const defaultAssets = [
         'assets/logo-lld-neon.png',
         'assets/logo-ll-metal.png',
         'assets/logo-ln-circle.png',
@@ -15,24 +19,168 @@ document.addEventListener('DOMContentLoaded', () => {
         'assets/texture-carbon.png',
         'assets/video-promo.mp4'
     ];
-    assetGrid.innerHTML = assets.map(src => `
-        <div class="asset-item">
-            ${src.endsWith('.mp4') ? `<video src="${src}" muted loop playsinline></video>` : `<img src="${src}" alt="Asset">`}
-        </div>
-    `).join('');
 
+    // Uploaded assets: [{name, dataUrl, type}]
+    let uploadedAssets   = [];
     let generatedAppHTML = '';
-    let generatedAppFilename = 'app.html';
+    let generatedAppFilename = 'app';
+
+    // ── Asset grid ────────────────────────────────────────────────────────────
+
+    function renderAssetGrid() {
+        const defaultItems = defaultAssets.map(src => `
+        <div class="asset-item">
+            ${src.endsWith('.mp4')
+                ? `<video src="${src}" muted loop playsinline></video>`
+                : `<img src="${src}" alt="Asset">`}
+        </div>`).join('');
+
+        const uploadedItems = uploadedAssets.map(a => `
+        <div class="asset-item">
+            <img src="${a.dataUrl}" alt="${a.name}">
+            <p style="text-align:center;font-size:0.7rem;margin-top:0.3rem;color:#00ffff;
+               overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 0.5rem">${a.name}</p>
+        </div>`).join('');
+
+        assetGrid.innerHTML = defaultItems + uploadedItems;
+    }
+
+    renderAssetGrid();
+
+    // ── File upload ───────────────────────────────────────────────────────────
+
+    assetUpload.addEventListener('change', () => {
+        const files = Array.from(assetUpload.files);
+        if (!files.length) return;
+
+        Promise.all(files.map(file => new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = e => resolve({ name: file.name, dataUrl: e.target.result, type: file.type });
+            reader.readAsDataURL(file);
+        }))).then(newAssets => {
+            uploadedAssets = [...uploadedAssets, ...newAssets];
+            renderAssetGrid();
+        });
+
+        assetUpload.value = '';
+    });
+
+    // ── Save / Load (localStorage) ────────────────────────────────────────────
+
+    const STORAGE_KEY = 'lavazStudio_project';
+
+    function saveProjectToStorage(name, type, features, theme) {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ name, type, features, theme })); }
+        catch (err) { console.warn('Could not save project to localStorage:', err); }
+    }
+
+    function loadProjectFromStorage() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || null; }
+        catch (err) { console.warn('Could not read project from localStorage:', err); return null; }
+    }
+
+    if (loadProjectFromStorage()) {
+        loadPreviousBtn.style.display = '';
+    }
+
+    loadPreviousBtn.addEventListener('click', () => {
+        const s = loadProjectFromStorage();
+        if (!s) return;
+        document.getElementById('appName').value  = s.name     || '';
+        document.getElementById('appType').value  = s.type     || 'portfolio';
+        document.getElementById('features').value = s.features || '';
+        document.getElementById('theme').value    = s.theme    || 'neon-cyber';
+        loadPreviousBtn.style.display = 'none';
+    });
+
+    // ── Generate ──────────────────────────────────────────────────────────────
 
     generateBtn.addEventListener('click', () => {
-        if (!appForm.checkValidity()) {
-            appForm.reportValidity();
-            return;
+        const form = document.getElementById('appForm');
+        if (!form.checkValidity()) { form.reportValidity(); return; }
+        doGenerate();
+    });
+
+    aiGenerateBtn.addEventListener('click', async () => {
+        const key = aiKey.value.trim();
+        if (!key) { alert('Please enter your OpenAI API key (get one at platform.openai.com) to use AI generation.'); return; }
+        const form = document.getElementById('appForm');
+        if (!form.checkValidity()) { form.reportValidity(); return; }
+
+        aiGenerateBtn.textContent = '⏳ Generating…';
+        aiGenerateBtn.disabled = true;
+
+        try {
+            const aiContent = await fetchAIContent(key);
+            doGenerate(aiContent);
+        } catch (err) {
+            alert('AI generation failed: ' + err.message);
+        } finally {
+            aiGenerateBtn.textContent = '✦ Generate with AI';
+            aiGenerateBtn.disabled = false;
         }
-        const appName = document.getElementById('appName').value.trim();
-        const appType = document.getElementById('appType').value;
+    });
+
+    async function fetchAIContent(apiKey) {
+        const appName  = document.getElementById('appName').value.trim();
+        const appType  = document.getElementById('appType').value;
         const features = document.getElementById('features').value.trim();
-        const theme = document.getElementById('theme').value;
+
+        const featureList = features
+            ? features.split(',').map(f => f.trim()).filter(Boolean)
+            : ['responsive layout', 'modern design', 'fast performance'];
+
+        const prompt = `You are a creative copywriter for web apps. Given the following details, generate compelling web copy.
+
+App name: "${appName}"
+App type: ${appType}
+Key features (${featureList.length} total): ${featureList.join(', ')}
+
+Return ONLY valid JSON (no markdown fences) with these exact fields:
+{
+  "heroTagline": "short punchy tagline (max 8 words)",
+  "heroDesc": "1–2 sentence hero description",
+  "featureDescs": ["one description per feature, exactly ${featureList.length} items in the same order"],
+  "aboutDesc": "1–2 sentence about section description",
+  "contactDesc": "1 sentence call-to-action for contact section"
+}`;
+
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [{ role: 'user', content: prompt }],
+                response_format: { type: 'json_object' },
+                max_tokens: 600
+            })
+        });
+
+        if (!res.ok) {
+            let errMsg = `HTTP ${res.status}`;
+            try {
+                const errData = await res.json();
+                errMsg = errData.error?.message || errMsg;
+            } catch (parseErr) {
+                console.warn('Could not parse API error response:', parseErr);
+            }
+            throw new Error(errMsg);
+        }
+
+        const data = await res.json();
+        return JSON.parse(data.choices[0].message.content);
+    }
+
+    function doGenerate(aiContent) {
+        const appName  = document.getElementById('appName').value.trim();
+        const appType  = document.getElementById('appType').value;
+        const features = document.getElementById('features').value.trim();
+        const theme    = document.getElementById('theme').value;
+
+        saveProjectToStorage(appName, appType, features, theme);
 
         const themes = {
             'neon-cyber': {
@@ -69,6 +217,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const featureItems = features
             ? features.split(',').map(f => f.trim()).filter(Boolean)
             : ['Responsive Layout', 'Modern Design', 'Fast Performance'];
+
+        // AI content overrides (fall back to template defaults when not provided)
+        const heroTagline  = aiContent?.heroTagline || null;
+        const heroDesc     = aiContent?.heroDesc    || null;
+        const aboutDesc    = aiContent?.aboutDesc   || null;
+        const contactDesc  = aiContent?.contactDesc || null;
+        const featureDescs = Array.isArray(aiContent?.featureDescs) ? aiContent.featureDescs : [];
 
         // Shared base CSS injected into every generated page
         const baseCSS = `
@@ -203,10 +358,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }`;
 
         const navLinks = {
-            portfolio:  ['#about', 'About', '#work', 'Work', '#contact', 'Contact'],
-            landing:    ['#features', 'Features', '#about', 'About', '#contact', 'Contact'],
-            builder:    ['#features', 'Features', '#demo', 'Demo', '#start', 'Get Started'],
-            custom:     ['#about', 'About', '#features', 'Features', '#contact', 'Contact']
+            portfolio: ['#about', 'About', '#work', 'Work', '#contact', 'Contact'],
+            landing:   ['#features', 'Features', '#about', 'About', '#contact', 'Contact'],
+            builder:   ['#features', 'Features', '#demo', 'Demo', '#start', 'Get Started'],
+            custom:    ['#about', 'About', '#features', 'Features', '#contact', 'Contact']
         };
 
         const buildNav = (type) => {
@@ -228,12 +383,35 @@ document.addEventListener('DOMContentLoaded', () => {
   <p>Built with Lavaz Studio &mdash; Lavaz Life Designs &copy; ${new Date().getFullYear()}</p>
 </footer>`;
 
-        const featureCards = (icons) => featureItems.map((f, i) => `
+        const featureCards = (icons) => featureItems.map((f, i) => {
+            const desc = featureDescs[i]
+                || `Delivering ${f.toLowerCase()} to create seamless, engaging user experiences.`;
+            return `
     <div class="card">
       <div class="card-icon">${icons[i % icons.length]}</div>
       <h3>${f}</h3>
-      <p>Delivering ${f.toLowerCase()} to create seamless, engaging user experiences.</p>
-    </div>`).join('');
+      <p>${desc}</p>
+    </div>`;
+        }).join('');
+
+        // Gallery section — injected if the user has uploaded assets
+        const buildGallery = () => {
+            if (!uploadedAssets.length) return '';
+            const imgs = uploadedAssets.map(a =>
+                `<div class="card" style="padding:0;overflow:hidden">
+    <img src="${a.dataUrl}" alt="${a.name}"
+         style="width:100%;height:200px;object-fit:cover;display:block">
+  </div>`
+            ).join('');
+            return `<section id="gallery">
+  <div class="section">
+    <p class="section-label">Gallery</p>
+    <div class="divider"></div>
+    <h2 class="section-title">Assets Gallery</h2>
+    <div class="card-grid">${imgs}</div>
+  </div>
+</section>`;
+        };
 
         let bodyContent = '';
 
@@ -242,8 +420,8 @@ document.addEventListener('DOMContentLoaded', () => {
 ${buildNav('portfolio')}
 <section class="hero">
   <p class="hero-eyebrow">Welcome &mdash; ${themeLabel}</p>
-  <h1>${appName}</h1>
-  <p>Creative developer &amp; designer. I build polished digital experiences that leave a lasting impression.</p>
+  <h1>${heroTagline || appName}</h1>
+  <p>${heroDesc || 'Creative developer &amp; designer. I build polished digital experiences that leave a lasting impression.'}</p>
   <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center">
     <a class="btn" href="#work">View My Work</a>
     <a class="btn btn-outline" href="#contact">Get In Touch</a>
@@ -255,7 +433,7 @@ ${buildNav('portfolio')}
     <p class="section-label">About Me</p>
     <div class="divider"></div>
     <h2 class="section-title">Who I Am</h2>
-    <p class="section-sub">A passionate creator focused on crafting modern web experiences. I combine design sensibility with technical depth to deliver work that stands out.</p>
+    <p class="section-sub">${aboutDesc || 'A passionate creator focused on crafting modern web experiences. I combine design sensibility with technical depth to deliver work that stands out.'}</p>
     <div class="card-grid">
       <div class="card"><div class="card-icon">🎨</div><h3>Design</h3><p>Pixel-perfect interfaces with a focus on clarity and visual hierarchy.</p></div>
       <div class="card"><div class="card-icon">⚙️</div><h3>Development</h3><p>Clean, maintainable code built to scale and perform.</p></div>
@@ -271,17 +449,19 @@ ${buildNav('portfolio')}
     <h2 class="section-title">Selected Work</h2>
     <p class="section-sub">A collection of projects that showcase skills across ${featureItems.slice(0, 3).join(', ')}.</p>
     <div class="card-grid">
-      ${featureItems.map((f, i) => `<div class="card"><div class="card-icon">${['🖥️','📱','🎬','🔧','💡','🌐'][i % 6]}</div><h3>Project ${i + 1}: ${f}</h3><p>An in-depth exploration of ${f.toLowerCase()} — designed, built, and deployed with care.</p></div>`).join('')}
+      ${featureItems.map((f, i) => `<div class="card"><div class="card-icon">${['🖥️','📱','🎬','🔧','💡','🌐'][i % 6]}</div><h3>Project ${i + 1}: ${f}</h3><p>${featureDescs[i] || `An in-depth exploration of ${f.toLowerCase()} — designed, built, and deployed with care.`}</p></div>`).join('')}
     </div>
   </div>
 </section>
+
+${buildGallery()}
 
 <section id="contact">
   <div class="section" style="text-align:center">
     <p class="section-label">Contact</p>
     <div class="divider"></div>
     <h2 class="section-title">Let&rsquo;s Work Together</h2>
-    <p class="section-sub">Have a project in mind? I&apos;d love to hear about it. Reach out and let&apos;s create something great.</p>
+    <p class="section-sub">${contactDesc || 'Have a project in mind? I&apos;d love to hear about it. Reach out and let&apos;s create something great.'}</p>
     <a class="btn" href="mailto:hello@example.com">Send a Message</a>
   </div>
 </section>
@@ -293,8 +473,8 @@ ${buildFooter()}`;
 ${buildNav('landing')}
 <section class="hero">
   <p class="hero-eyebrow">Introducing &mdash; ${appName}</p>
-  <h1>The Future of<br>${featureItems[0] || 'Your Product'}</h1>
-  <p>Everything you need to launch, grow, and scale — in one powerful platform built for modern teams.</p>
+  <h1>${heroTagline || `The Future of<br>${featureItems[0] || 'Your Product'}`}</h1>
+  <p>${heroDesc || 'Everything you need to launch, grow, and scale — in one powerful platform built for modern teams.'}</p>
   <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center">
     <a class="btn" href="#features">Explore Features</a>
     <a class="btn btn-outline" href="#contact">Request Demo</a>
@@ -316,7 +496,7 @@ ${buildNav('landing')}
     <p class="section-label">Why ${appName}</p>
     <div class="divider"></div>
     <h2 class="section-title">Built for Results</h2>
-    <p class="section-sub">We obsess over the details so you can focus on what matters — growing your product and delighting your users.</p>
+    <p class="section-sub">${aboutDesc || 'We obsess over the details so you can focus on what matters — growing your product and delighting your users.'}</p>
     <div class="card-grid">
       <div class="card"><div class="card-icon">📈</div><h3>Performance First</h3><p>Engineered for speed. Your users will never wait.</p></div>
       <div class="card"><div class="card-icon">🔒</div><h3>Secure by Design</h3><p>Enterprise-grade security baked in from day one.</p></div>
@@ -325,12 +505,14 @@ ${buildNav('landing')}
   </div>
 </section>
 
+${buildGallery()}
+
 <section id="contact">
   <div class="section" style="text-align:center">
     <p class="section-label">Get Started</p>
     <div class="divider"></div>
     <h2 class="section-title">Ready to Launch?</h2>
-    <p class="section-sub">Join thousands of teams already using ${appName} to build the next big thing.</p>
+    <p class="section-sub">${contactDesc || `Join thousands of teams already using ${appName} to build the next big thing.`}</p>
     <a class="btn" href="#features">Start for Free</a>
   </div>
 </section>
@@ -342,8 +524,8 @@ ${buildFooter()}`;
 ${buildNav('builder')}
 <section class="hero">
   <p class="hero-eyebrow">No-Code Builder &mdash; ${appName}</p>
-  <h1>Build Anything.<br>Deploy in Seconds.</h1>
-  <p>A powerful drag-and-drop builder that turns your ideas into production-ready web apps without writing a single line of code.</p>
+  <h1>${heroTagline || 'Build Anything.<br>Deploy in Seconds.'}</h1>
+  <p>${heroDesc || 'A powerful drag-and-drop builder that turns your ideas into production-ready web apps without writing a single line of code.'}</p>
   <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center">
     <a class="btn" href="#features">See How It Works</a>
     <a class="btn btn-outline" href="#demo">View Demo</a>
@@ -355,7 +537,7 @@ ${buildNav('builder')}
     <p class="section-label">Capabilities</p>
     <div class="divider"></div>
     <h2 class="section-title">Powerful Features</h2>
-    <p class="section-sub">Everything a modern builder needs — from layout tools to deployment pipelines.</p>
+    <p class="section-sub">${aboutDesc || 'Everything a modern builder needs — from layout tools to deployment pipelines.'}</p>
     <div class="card-grid">${featureCards(['🧩','⚡','🎨','📦','🔗','☁️'])}</div>
   </div>
 </section>
@@ -379,12 +561,14 @@ ${buildNav('builder')}
   </div>
 </section>
 
+${buildGallery()}
+
 <section id="start">
   <div class="section" style="text-align:center">
     <p class="section-label">Get Started</p>
     <div class="divider"></div>
     <h2 class="section-title">Start Building Today</h2>
-    <p class="section-sub">No credit card required. Get your first app live in under 5 minutes.</p>
+    <p class="section-sub">${contactDesc || 'No credit card required. Get your first app live in under 5 minutes.'}</p>
     <a class="btn" href="#features">Open Builder</a>
   </div>
 </section>
@@ -397,8 +581,8 @@ ${buildFooter()}`;
 ${buildNav('custom')}
 <section class="hero">
   <p class="hero-eyebrow">${appName} &mdash; ${themeLabel}</p>
-  <h1>${appName}</h1>
-  <p>A custom-built web experience crafted with purpose, precision, and personality.</p>
+  <h1>${heroTagline || appName}</h1>
+  <p>${heroDesc || 'A custom-built web experience crafted with purpose, precision, and personality.'}</p>
   <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center">
     <a class="btn" href="#features">Discover More</a>
     <a class="btn btn-outline" href="#contact">Contact Us</a>
@@ -410,7 +594,7 @@ ${buildNav('custom')}
     <p class="section-label">About</p>
     <div class="divider"></div>
     <h2 class="section-title">What We Do</h2>
-    <p class="section-sub">We deliver exceptional digital experiences through thoughtful design and solid engineering.</p>
+    <p class="section-sub">${aboutDesc || 'We deliver exceptional digital experiences through thoughtful design and solid engineering.'}</p>
     <div class="card-grid">
       <div class="card"><div class="card-icon">💡</div><h3>Vision</h3><p>Big ideas backed by clear strategy and purposeful execution.</p></div>
       <div class="card"><div class="card-icon">🛠️</div><h3>Craft</h3><p>Every detail considered, every interaction refined.</p></div>
@@ -429,12 +613,14 @@ ${buildNav('custom')}
   </div>
 </section>
 
+${buildGallery()}
+
 <section id="contact">
   <div class="section" style="text-align:center">
     <p class="section-label">Contact</p>
     <div class="divider"></div>
     <h2 class="section-title">Get In Touch</h2>
-    <p class="section-sub">Have a question or want to work together? We&apos;d love to hear from you.</p>
+    <p class="section-sub">${contactDesc || 'Have a question or want to work together? We&apos;d love to hear from you.'}</p>
     <a class="btn" href="mailto:hello@example.com">Send a Message</a>
   </div>
 </section>
@@ -461,23 +647,58 @@ ${bodyContent}
         downloadBtn.disabled = false;
         downloadStatus.textContent = `Generated: ${appName} (${appType})`;
         generatedAppHTML = generatedHTML;
-        generatedAppFilename = (appName || 'app').replace(/\s+/g, '-').toLowerCase() + '.html';
+        generatedAppFilename = (appName || 'app').replace(/\s+/g, '-').toLowerCase();
+    }
+
+    // ── Download ──────────────────────────────────────────────────────────────
+
+    downloadBtn.addEventListener('click', async () => {
+        if (!generatedAppHTML) return;
+        if (downloadFormat && downloadFormat.value === 'zip') {
+            await downloadAsZip();
+        } else {
+            downloadAsHTML();
+        }
     });
 
-    downloadBtn.addEventListener('click', () => {
-        if (!generatedAppHTML) return;
+    function downloadAsHTML() {
         const link = document.createElement('a');
         link.href = 'data:text/html;charset=utf-8,' + encodeURIComponent(generatedAppHTML);
-        link.download = generatedAppFilename;
+        link.download = generatedAppFilename + '.html';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        downloadStatus.textContent = `Downloaded: ${generatedAppFilename}`;
-    });
+        downloadStatus.textContent = `Downloaded: ${generatedAppFilename}.html`;
+    }
 
-    // Smooth scroll for nav
+    async function downloadAsZip() {
+        const zip = new JSZip();
+        zip.file('index.html', generatedAppHTML);
+
+        if (uploadedAssets.length) {
+            const assetsFolder = zip.folder('assets');
+            uploadedAssets.forEach(a => {
+                const b64 = a.dataUrl.split(',')[1];
+                assetsFolder.file(a.name, b64, { base64: true });
+            });
+        }
+
+        const blob = await zip.generateAsync({ type: 'blob' });
+        const url  = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = generatedAppFilename + '.zip';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        downloadStatus.textContent = `Downloaded: ${generatedAppFilename}.zip`;
+    }
+
+    // ── Smooth scroll ─────────────────────────────────────────────────────────
+
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', (e) => {
+        anchor.addEventListener('click', e => {
             e.preventDefault();
             const target = document.querySelector(anchor.getAttribute('href'));
             if (target) target.scrollIntoView({ behavior: 'smooth' });

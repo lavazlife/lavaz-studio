@@ -1,9 +1,10 @@
-const CACHE_NAME = 'lavaz-studio-v1';
+const CACHE_NAME = 'lavaz-studio-v2';
 const urlsToCache = [
   './',
   './index.html',
   './style.css',
   './app.js',
+  './jszip.min.js',
   './assets/logo-ln-circle.png',
   './assets/logo-lld-neon.png',
   './assets/logo-ll-metal.png',
