@@ -1208,7 +1208,7 @@ ${footerHTML}
             }
 
             status.textContent = 'Uploading index.html…';
-            const content = btoa(unescape(encodeURIComponent(generatedAppHTML)));
+            const content = btoa(new TextEncoder().encode(generatedAppHTML).reduce((data, byte) => data + String.fromCharCode(byte), ''));
             const commitRes = await fetch(`https://api.github.com/repos/${owner}/${repoName}/contents/index.html`, {
                 method: 'PUT',
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'LavazStudio' },
