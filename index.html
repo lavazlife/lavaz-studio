@@ -1,92 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lavaz Studio - Build Web Apps Instantly</title>
-    <link rel="manifest" href="./manifest.json">
-    <script>if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js')); }</script>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lavaz Studio - Build Web Apps Instantly</title>
+
+  <!-- PWA / Manifest -->
+  <link rel="manifest" href="./manifest.json">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () =>
+        navigator.serviceWorker.register('./sw.js')
+      );
+    }
+  </script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="hero" id="hero">
-        <div class="logo-container">
-            <img src="assets/logo-ln-circle.png" alt="Lavaz Logo" class="main-logo">
-            <h1>Lavaz Studio</h1>
-            <p>Generate complete responsive web apps from minimal input</p>
-        </div>
-        <video autoplay muted loop class="bg-video">
-            <source src="assets/video-promo.mp4" type="video/mp4">
-        </video>
+  <!-- HERO -->
+  <div class="hero" id="hero">
+    <div class="logo-container">
+      <img src="assets/logo-ln-circle.png" alt="Lavaz Logo" class="main-logo">
+      <h1>Lavaz Studio</h1>
+      <p>Generate complete responsive web apps from minimal input</p>
     </div>
+    <video autoplay muted loop class="bg-video">
+      <source src="assets/video-promo.mp4" type="video/mp4">
+    </video>
+  </div>
 
-    <nav class="navbar">
-        <ul>
-            <li><a href="#builder">Builder</a></li>
-            <li><a href="#assets">Assets</a></li>
-            <li><a href="#preview">Preview</a></li>
-            <li><a href="#download">Download</a></li>
-        </ul>
-    </nav>
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <ul>
+      <li><a href="#builder">Builder</a></li>
+      <li><a href="#assets">Assets</a></li>
+      <li><a href="#preview">Preview</a></li>
+      <li><a href="#download">Download</a></li>
+    </ul>
+  </nav>
 
-    <main>
-        <section id="builder" class="section">
-            <h2>Define Your App</h2>
-            <form id="appForm">
-                <div class="input-group">
-                    <label>App Name</label>
-                    <input type="text" id="appName" placeholder="e.g., My Portfolio" required>
-                </div>
-                <div class="input-group">
-                    <label>App Type</label>
-                    <select id="appType">
-                        <option value="portfolio">Portfolio</option>
-                        <option value="landing">Landing Page</option>
-                        <option value="builder">App Builder</option>
-                        <option value="custom">Custom</option>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label>Key Features (comma-separated)</label>
-                    <textarea id="features" placeholder="e.g., contact form, gallery, responsive"></textarea>
-                </div>
-                <div class="input-group">
-                    <label>Style Theme</label>
-                    <select id="theme">
-                        <option value="neon-cyber">Neon Cyber (default)</option>
-                        <option value="carbon-metal">Carbon Metal</option>
-                        <option value="dark-gradient">Dark Gradient</option>
-                    </select>
-                </div>
-                <button type="submit">Generate App</button>
-            </form>
-        </section>
+  <main>
+    <!-- BUILDER SECTION -->
+    <section id="builder" class="section">
+      <h2>Define Your App</h2>
 
-        <section id="assets" class="section">
-            <h2>Uploaded Assets Preview</h2>
-            <div id="assetGrid" class="grid">
-                <!-- Dynamically populated -->
-            </div>
-        </section>
+      <form id="appForm">
+        <div class="input-group">
+          <label for="appName">App Name</label>
+          <input type="text" id="appName" placeholder="e.g., My Portfolio" required>
+        </div>
 
-        <section id="preview" class="section">
-            <h2>Generated App Preview</h2>
-            <iframe id="previewFrame" srcdoc="<h1>Preview loads here</h1>"></iframe>
-        </section>
+        <div class="input-group">
+          <label for="appType">App Type</label>
+          <select id="appType">
+            <option value="portfolio">Portfolio</option>
+            <option value="landing">Landing Page</option>
+            <option value="builder">App Builder</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
 
-        <section id="download" class="section">
-            <h2>Download Your App</h2>
-            <button id="downloadBtn" disabled>Download ZIP</button>
-            <p id="downloadStatus"></p>
-        </section>
-    </main>
+        <div class="input-group">
+          <label for="features">Key Features (comma-separated)</label>
+          <textarea id="features" placeholder="e.g., contact form, gallery, responsive"></textarea>
+        </div>
 
-    <footer>
-        <img src="assets/logo-lld-neon.png" alt="LLD Logo" class="footer-logo">
-        <p>&copy; 2026 Lavaz Life Designs. Built with Lavaz Studio.</p>
-    </footer>
+        <div class="input-group">
+          <label for="theme">Style Theme</label>
+          <select id="theme">
+            <option value="neon-cyber">Neon Cyber (default)</option>
+            <option value="carbon-metal">Carbon Metal</option>
+            <option value="dark-gradient">Dark Gradient</option>
+          </select>
+        </div>
 
-    <script src="app.js"></script>
+        <button type="button" id="generateBtn">Generate App</button>
+      </form>
+    </section>
+
+    <!-- ASSETS PREVIEW -->
+    <section id="assets" class="section">
+      <h2>Uploaded Assets Preview</h2>
+      <div id="assetsPreview"></div>
+    </section>
+
+    <!-- GENERATED APP PREVIEW -->
+    <section id="preview" class="section">
+      <h2>Generated App Preview</h2>
+      <iframe id="appPreviewFrame"></iframe>
+    </section>
+
+    <!-- DOWNLOAD SECTION -->
+    <section id="download" class="section">
+      <h2>Download Your App</h2>
+      <button type="button" id="downloadZipBtn">Download ZIP</button>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <img src="assets/logo-ln-circle.png" alt="LLD Logo" class="footer-logo">
+    <p>© 2026 Lavaz Life Designs. Built with Lavaz Studio.</p>
+  </footer>
+
+  <!-- App logic -->
+  <script src="app.js"></script>
 </body>
 </html>
