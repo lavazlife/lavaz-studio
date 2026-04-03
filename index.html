@@ -37,6 +37,7 @@
   <!-- NAVBAR -->
   <nav class="navbar">
     <ul>
+      <li><a href="#templates">Templates</a></li>
       <li><a href="#builder">Builder</a></li>
       <li><a href="#assets">Assets</a></li>
       <li><a href="#preview">Preview</a></li>
@@ -45,6 +46,13 @@
   </nav>
 
   <main>
+    <!-- TEMPLATE GALLERY SECTION -->
+    <section id="templates" class="section">
+      <h2>Template Gallery</h2>
+      <p class="section-subtitle">Click a template to pre-fill your builder settings</p>
+      <div id="templateGrid" class="template-grid"></div>
+    </section>
+
     <!-- BUILDER SECTION -->
     <section id="builder" class="section">
       <h2>Define Your App</h2>
@@ -60,14 +68,27 @@
           <select id="appType">
             <option value="portfolio">Portfolio</option>
             <option value="landing">Landing Page</option>
+            <option value="blog">Blog</option>
+            <option value="ecommerce">E-Commerce Store</option>
+            <option value="saas">SaaS Product</option>
             <option value="builder">App Builder</option>
             <option value="custom">Custom</option>
           </select>
         </div>
 
         <div class="input-group">
-          <label for="features">Key Features (comma-separated)</label>
+          <label for="features">Key Features / Description (comma-separated)</label>
           <textarea id="features" placeholder="e.g., contact form, gallery, responsive"></textarea>
+          <button type="button" id="promptLibraryBtn" class="btn-small" style="margin-top:0.5rem">📚 Prompt Library</button>
+        </div>
+
+        <!-- PROMPT LIBRARY PANEL -->
+        <div id="promptLibraryPanel" class="prompt-library-panel" style="display:none"></div>
+
+        <!-- COMPONENT LIBRARY -->
+        <div class="input-group">
+          <label>Sections to Include</label>
+          <div id="componentLibrary" class="component-library"></div>
         </div>
 
         <div class="input-group">
@@ -76,7 +97,33 @@
             <option value="neon-cyber">Neon Cyber (default)</option>
             <option value="carbon-metal">Carbon Metal</option>
             <option value="dark-gradient">Dark Gradient</option>
+            <option value="light-clean">Light Clean</option>
+            <option value="pastel-dream">Pastel Dream</option>
+            <option value="minimal-dark">Minimal Dark</option>
           </select>
+        </div>
+
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:1.5rem">
+          <div class="input-group" style="flex:1;min-width:200px;margin-bottom:0">
+            <label for="fontFamily">Font Family</label>
+            <select id="fontFamily">
+              <option value="Orbitron">Orbitron (Futuristic)</option>
+              <option value="Inter">Inter (Clean)</option>
+              <option value="Poppins">Poppins (Friendly)</option>
+              <option value="Raleway">Raleway (Elegant)</option>
+              <option value="Space+Grotesk">Space Grotesk (Modern)</option>
+              <option value="Playfair+Display">Playfair Display (Classic)</option>
+              <option value="Space+Mono">Space Mono (Monospace)</option>
+            </select>
+          </div>
+          <div class="input-group" style="flex:0 0 auto;margin-bottom:0">
+            <label for="accentColor">Accent Color</label>
+            <div style="display:flex;align-items:center;gap:0.75rem;padding-top:0.35rem">
+              <input type="color" id="accentColor" value="#00ffff" class="color-picker">
+              <span id="accentColorHex" style="font-size:0.8rem;color:#00ffff">#00ffff</span>
+              <button type="button" id="resetAccentBtn" class="btn-small">Reset</button>
+            </div>
+          </div>
         </div>
 
         <button type="button" id="generateBtn">Generate App</button>
@@ -109,9 +156,16 @@
       <iframe id="previewFrame"></iframe>
     </section>
 
-    <!-- DOWNLOAD SECTION -->
+    <!-- SECTION REORDER PANEL (shown after generation) -->
+    <section id="reorder" class="section" style="display:none">
+      <h2>Section Order</h2>
+      <p class="section-subtitle">Drag sections to reorder — preview updates automatically</p>
+      <div id="sectionOrderList" class="section-order-list"></div>
+    </section>
+
+    <!-- DOWNLOAD & DEPLOY SECTION -->
     <section id="download" class="section">
-      <h2>Download Your App</h2>
+      <h2>Download &amp; Deploy</h2>
       <div class="input-group">
         <label for="downloadFormat">Export Format</label>
         <select id="downloadFormat">
@@ -119,7 +173,10 @@
           <option value="zip">ZIP Project (HTML + Assets folder)</option>
         </select>
       </div>
-      <button type="button" id="downloadBtn" disabled>Download App</button>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center">
+        <button type="button" id="downloadBtn" disabled>⬇️ Download App</button>
+        <button type="button" id="deployBtn" disabled>🚀 Deploy App</button>
+      </div>
       <p id="downloadStatus"></p>
     </section>
   </main>
@@ -129,6 +186,68 @@
     <img src="assets/logo-ln-circle.png" alt="LLD Logo" class="footer-logo">
     <p>© 2026 Lavaz Life Designs. Built with Lavaz Studio.</p>
   </footer>
+
+  <!-- DEPLOY MODAL -->
+  <div id="deployModal" class="modal-overlay" style="display:none">
+    <div class="modal-box">
+      <button class="modal-close" id="closeDeployModal">&times;</button>
+      <h2 style="text-align:center;margin-bottom:1.5rem;font-size:1.5rem">🚀 Deploy Your App</h2>
+      <div class="deploy-tabs">
+        <button class="deploy-tab active" data-tab="github">GitHub Pages</button>
+        <button class="deploy-tab" data-tab="netlify">Netlify</button>
+        <button class="deploy-tab" data-tab="manual">Quick Drop</button>
+      </div>
+
+      <!-- GitHub Pages Tab -->
+      <div id="tab-github" class="deploy-tab-content">
+        <p class="deploy-hint">Deploy via GitHub API. Requires a Personal Access Token with <strong>repo</strong> scope from <a href="https://github.com/settings/tokens" target="_blank">github.com/settings/tokens</a>.</p>
+        <div class="input-group">
+          <label for="ghToken">GitHub Personal Access Token</label>
+          <input type="password" id="ghToken" placeholder="ghp_...">
+        </div>
+        <div class="input-group">
+          <label for="ghRepo">Repository Name</label>
+          <input type="text" id="ghRepo" placeholder="my-app">
+        </div>
+        <button type="button" id="deployGithubBtn">Deploy to GitHub Pages</button>
+        <div id="githubDeployStatus" class="deploy-status"></div>
+      </div>
+
+      <!-- Netlify Tab -->
+      <div id="tab-netlify" class="deploy-tab-content" style="display:none">
+        <p class="deploy-hint">Deploy via Netlify API. Get a Personal Access Token from <a href="https://app.netlify.com/user/applications" target="_blank">app.netlify.com/user/applications</a>.</p>
+        <div class="input-group">
+          <label for="netlifyToken">Netlify Access Token</label>
+          <input type="password" id="netlifyToken" placeholder="your-netlify-token">
+        </div>
+        <div class="input-group">
+          <label for="netlifySiteName">Site Name (optional, must be unique)</label>
+          <input type="text" id="netlifySiteName" placeholder="my-awesome-site">
+        </div>
+        <button type="button" id="deployNetlifyBtn">Deploy to Netlify</button>
+        <div id="netlifyDeployStatus" class="deploy-status"></div>
+      </div>
+
+      <!-- Manual / Quick Drop Tab -->
+      <div id="tab-manual" class="deploy-tab-content" style="display:none">
+        <div style="display:flex;flex-direction:column;gap:1.25rem">
+          <div class="deploy-option-card">
+            <h3>⚡ Netlify Drop</h3>
+            <p>1. Click "Download" below to get your HTML file<br>2. Open <a href="https://app.netlify.com/drop" target="_blank">app.netlify.com/drop</a><br>3. Drag &amp; drop your file — live in seconds, no account needed</p>
+          </div>
+          <div class="deploy-option-card">
+            <h3>▲ Vercel Deploy</h3>
+            <p>1. Download your app<br>2. Visit <a href="https://vercel.com/new" target="_blank">vercel.com/new</a><br>3. Import from GitHub or drag your project folder</p>
+          </div>
+          <div class="deploy-option-card">
+            <h3>📖 GitHub Pages (Manual)</h3>
+            <p>1. Create a new GitHub repository<br>2. Upload your <code>index.html</code> to the root<br>3. Settings → Pages → Deploy from branch → main</p>
+          </div>
+        </div>
+        <button type="button" id="downloadForDeployBtn" style="margin-top:1.5rem;width:100%">⬇️ Download App Now</button>
+      </div>
+    </div>
+  </div>
 
   <!-- JSZip for ZIP export -->
   <script src="jszip.min.js"></script>
