@@ -71,12 +71,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function saveProjectToStorage(name, type, features, theme) {
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ name, type, features, theme })); }
-        catch (_) {}
+        catch (err) { console.warn('Could not save project to localStorage:', err); }
     }
 
     function loadProjectFromStorage() {
         try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || null; }
-        catch (_) { return null; }
+        catch (err) { console.warn('Could not read project from localStorage:', err); return null; }
     }
 
     if (loadProjectFromStorage()) {
@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     aiGenerateBtn.addEventListener('click', async () => {
         const key = aiKey.value.trim();
-        if (!key) { alert('Please enter your OpenAI API key to use AI generation.'); return; }
+        if (!key) { alert('Please enter your OpenAI API key (get one at platform.openai.com) to use AI generation.'); return; }
         const form = document.getElementById('appForm');
         if (!form.checkValidity()) { form.reportValidity(); return; }
 
@@ -126,17 +126,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const appType  = document.getElementById('appType').value;
         const features = document.getElementById('features').value.trim();
 
+        const featureList = features
+            ? features.split(',').map(f => f.trim()).filter(Boolean)
+            : ['responsive layout', 'modern design', 'fast performance'];
+
         const prompt = `You are a creative copywriter for web apps. Given the following details, generate compelling web copy.
 
 App name: "${appName}"
 App type: ${appType}
-Key features: ${features || 'responsive layout, modern design, fast performance'}
+Key features (${featureList.length} total): ${featureList.join(', ')}
 
 Return ONLY valid JSON (no markdown fences) with these exact fields:
 {
   "heroTagline": "short punchy tagline (max 8 words)",
   "heroDesc": "1–2 sentence hero description",
-  "featureDescs": ["description for each feature, same order as the features list"],
+  "featureDescs": ["one description per feature, exactly ${featureList.length} items in the same order"],
   "aboutDesc": "1–2 sentence about section description",
   "contactDesc": "1 sentence call-to-action for contact section"
 }`;
@@ -156,8 +160,14 @@ Return ONLY valid JSON (no markdown fences) with these exact fields:
         });
 
         if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.error?.message || `HTTP ${res.status}`);
+            let errMsg = `HTTP ${res.status}`;
+            try {
+                const errData = await res.json();
+                errMsg = errData.error?.message || errMsg;
+            } catch (parseErr) {
+                console.warn('Could not parse API error response:', parseErr);
+            }
+            throw new Error(errMsg);
         }
 
         const data = await res.json();
