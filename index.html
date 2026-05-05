@@ -1,257 +1,478 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#00ffff">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>Lavaz Studio - Build Web Apps Instantly</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Premium Prompt Vault</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      background-color: #0A0B0D;
+      color: #cbd5e1; /* text-slate-300 */
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background-color: #334155;
+      border-radius: 10px;
+    }
+  </style>
 
-  <!-- PWA / Manifest -->
-  <link rel="manifest" href="./manifest.json">
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () =>
-        navigator.serviceWorker.register('./sw.js')
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- Babel -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-[#0A0B0D] font-sans text-slate-300 antialiased overflow-hidden">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const CATEGORIES = [
+      { id: 'image', label: 'Image Feed', icon: '🖼️', colorClass: 'text-blue-500', bgClass: 'bg-blue-500/10' },
+      { id: 'video', label: 'Video Base', icon: '🎬', colorClass: 'text-purple-500', bgClass: 'bg-purple-500/10' },
+      { id: 'logo', label: 'Logo Design', icon: '✒️', colorClass: 'text-amber-500', bgClass: 'bg-amber-500/10' },
+      { id: 'icon', label: 'Icon Assets', icon: '💎', colorClass: 'text-emerald-500', bgClass: 'bg-emerald-500/10' },
+      { id: 'font', label: 'Typography', icon: '🔡', colorClass: 'text-pink-500', bgClass: 'bg-pink-500/10' },
+      { id: 'document', label: 'Documents', icon: '📄', colorClass: 'text-slate-400', bgClass: 'bg-slate-400/10' },
+    ];
+
+    const WORD_BANKS = {
+      'Lighting & Style': ['Volumetric', 'Rim Light', 'Ray Tracing', 'Chiaroscuro', 'Golden Hour'],
+      'Technical Quality': ['Octane Render', 'Unreal Engine 5', '8K Resolution', 'Masterpiece'],
+      'Artist Influences': ['Greg Rutkowski', 'Wes Anderson', 'Studio Ghibli'],
+      'Mood & Atmosphere': ['Ethereal', 'Gritty', 'Melancholy', 'Utopian', 'Dreamy'],
+      'Video & Motion': ['Slow-motion', 'Time-lapse', 'Sweeping Pan', 'Tracking Shot'],
+      'Logo Styles': ['Flat Vector', 'Negative Space', 'Monoline', 'Gradient', 'Typographic'],
+    };
+
+    const TEMPLATES = {
+      image: [
+        { label: 'Cinematic Portrait', text: 'A hyper-realistic cinematic portrait of [Subject], [Lighting], depth of field, 8k resolution, [Style].' },
+        { label: 'Epic Landscape', text: 'A sweeping landscape of [Location] during [Time of Day], [Weather/Atmosphere], [Art Style].' }
+      ],
+      video: [
+        { label: 'Cinematic Pan', text: 'Slow-motion sweeping pan over [Subject/Location], cinematic reveal, [Lighting], shot on [Camera Lens].' },
+        { label: 'Action Tracking', text: 'Fast-paced tracking shot following [Subject] through [Environment], dramatic lighting, high tension.' }
+      ],
+      logo: [
+        { label: 'Minimalist Startup', text: 'Minimalist flat vector logo for [Company Field], incorporating [Element], negative space, clean gradient background.' },
+        { label: 'Gaming Mascot', text: 'Esports style mascot logo of a [Animal/Character], aggressive posture, thick outlines, [Color Palette].' }
+      ],
+      icon: [
+        { label: '3D Glass', text: 'A completely transparent 3D glass icon of [Object], isometric view, perfect lighting, clean background.' },
+        { label: 'Flat UI Icon', text: 'Modern flat app icon for iOS, depicting [Concept], rounded corners, drop shadow, [Colors].' }
+      ],
+      font: [
+        { label: 'Typeface Concept', text: 'Design a full alphabet for a [Style] typeface inspired by [Era/Theme], suitable for [Use Case].' }
+      ],
+      document: [
+        { label: 'Executive Summary', text: 'Write a comprehensive executive summary for [Project/Product]. Include market analysis, target audience, and key differentiators.' },
+        { label: 'Blog Post Draft', text: 'Draft an engaging blog post about [Topic], aimed at [Audience], using a [Tone] tone. Include actionable takeaways.' }
+      ]
+    };
+
+    const DEFAULT_PROMPTS = [
+      { id: '1', category: 'image', text: 'Cinematic street photography of Tokyo at night during rain, neon reflections, 35mm lens, f1.8, grainy texture, highly detailed cyberpunk aesthetics...', timestamp: 1716380000000 },
+      { id: '3', category: 'logo', text: 'Minimalist geometric fox mascot, vector art style, flat design, sharp edges, monochromatic slate grey background, high symmetry...', timestamp: 1716380020000 },
+      { id: '5', category: 'document', text: 'Executive summary for a sustainable energy startup, professional tone, data-driven insights, persuasive call to action, 500 words limit...', timestamp: 1716380040000 },
+    ];
+
+    function CopyButton({ text, label = 'COPY', className = '' }) {
+      const [copied, setCopied] = useState(false);
+
+      const handleCopy = () => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      };
+
+      return (
+        <button
+          onClick={handleCopy}
+          className={`text-[10px] px-2 py-1 rounded border transition-colors ${
+            copied 
+              ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' 
+              : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+          } ${className}`}
+        >
+          {copied ? 'COPIED ✅' : label}
+        </button>
       );
     }
-  </script>
 
-  <!-- Styles -->
-  <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
-</head>
-<body>
-  <!-- HERO -->
-  <section class="hero" id="hero">
-    <video autoplay muted loop class="bg-video">
-      <source src="assets/video-promo.mp4" type="video/mp4">
-    </video>
-    <div class="logo-container">
-      <img src="assets/logo-ln-circle.png" alt="Lavaz Logo" class="main-logo">
-      <h1>Lavaz Studio</h1>
-      <p>Generate complete responsive web apps from minimal input</p>
-    </div>
-  </section>
+    function App() {
+      const [isAuth, setIsAuth] = useState(false);
+      const [pin, setPin] = useState('');
+      const [authError, setAuthError] = useState('');
 
-  <!-- NAVBAR -->
-  <nav class="navbar">
-    <ul>
-      <li><a href="#templates">Templates</a></li>
-      <li><a href="#builder">Builder</a></li>
-      <li><a href="#assets">Assets</a></li>
-      <li><a href="#preview">Preview</a></li>
-      <li><a href="#download">Download</a></li>
-    </ul>
-  </nav>
+      const [activeTab, setActiveTab] = useState('image');
+      const [builderText, setBuilderText] = useState(() => localStorage.getItem('draft-prompt') || '');
+      const [builderCategory, setBuilderCategory] = useState('image');
+      const [editingId, setEditingId] = useState(null);
+      
+      const [prompts, setPrompts] = useState(() => {
+        const saved = localStorage.getItem('vault-prompts');
+        return saved ? JSON.parse(saved) : DEFAULT_PROMPTS;
+      });
 
-  <main>
-    <!-- TEMPLATE GALLERY SECTION -->
-    <section id="templates" class="section">
-      <h2>Template Gallery</h2>
-      <p class="section-subtitle">Click a template to pre-fill your builder settings</p>
-      <div id="templateGrid" class="template-grid"></div>
-    </section>
+      useEffect(() => {
+        localStorage.setItem('draft-prompt', builderText);
+      }, [builderText]);
 
-    <!-- BUILDER SECTION -->
-    <section id="builder" class="section">
-      <h2>Define Your App</h2>
+      useEffect(() => {
+        localStorage.setItem('vault-prompts', JSON.stringify(prompts));
+      }, [prompts]);
 
-      <form id="appForm">
-        <div class="input-group">
-          <label for="appName">App Name</label>
-          <input type="text" id="appName" placeholder="e.g., My Portfolio" required>
-        </div>
+      const handleLogin = (e) => {
+        e.preventDefault();
+        if (pin === '6417') {
+          setIsAuth(true);
+          setAuthError('');
+        } else {
+          setAuthError('Invalid PIN');
+          setPin('');
+        }
+      };
 
-        <div class="input-group">
-          <label for="appType">App Type</label>
-          <select id="appType">
-            <option value="portfolio">Portfolio</option>
-            <option value="landing">Landing Page</option>
-            <option value="blog">Blog</option>
-            <option value="ecommerce">E-Commerce Store</option>
-            <option value="saas">SaaS Product</option>
-            <option value="builder">App Builder</option>
-            <option value="custom">Custom</option>
-          </select>
-        </div>
+      const savePrompt = () => {
+        if (!builderText.trim()) return;
+        
+        if (editingId) {
+          setPrompts(prompts.map(p => 
+            p.id === editingId 
+              ? { ...p, text: builderText, category: builderCategory, timestamp: Date.now() }
+              : p
+          ));
+          setEditingId(null);
+        } else {
+          const newPrompt = {
+            id: crypto.randomUUID(),
+            category: builderCategory,
+            text: builderText,
+            timestamp: Date.now()
+          };
+          setPrompts([newPrompt, ...prompts]);
+        }
+        
+        setBuilderText('');
+        setActiveTab(builderCategory);
+      };
 
-        <div class="input-group">
-          <label for="features">Key Features / Description (comma-separated)</label>
-          <textarea id="features" placeholder="e.g., contact form, gallery, responsive"></textarea>
-          <button type="button" id="promptLibraryBtn" class="btn-small" style="margin-top:0.5rem">📚 Prompt Library</button>
-        </div>
+      const startEditing = (prompt) => {
+        setBuilderText(prompt.text);
+        setBuilderCategory(prompt.category);
+        setEditingId(prompt.id);
+        document.getElementById('prompt-builder')?.focus();
+      };
 
-        <!-- PROMPT LIBRARY PANEL -->
-        <div id="promptLibraryPanel" class="prompt-library-panel" style="display:none"></div>
+      const appendToBuilder = (word) => {
+        setBuilderText(prev => {
+          const p = prev.trim();
+          return p ? `${p}, ${word}` : word;
+        });
+      };
 
-        <!-- COMPONENT LIBRARY -->
-        <div class="input-group">
-          <label>Sections to Include</label>
-          <div id="componentLibrary" class="component-library"></div>
-        </div>
+      const deletePrompt = (id) => {
+        setPrompts(prompts.filter(p => p.id !== id));
+      };
 
-        <div class="input-group">
-          <label for="theme">Style Theme</label>
-          <select id="theme">
-            <option value="neon-cyber">Neon Cyber (default)</option>
-            <option value="carbon-metal">Carbon Metal</option>
-            <option value="dark-gradient">Dark Gradient</option>
-            <option value="light-clean">Light Clean</option>
-            <option value="pastel-dream">Pastel Dream</option>
-            <option value="minimal-dark">Minimal Dark</option>
-          </select>
-        </div>
+      const filteredPrompts = prompts.filter(p => p.category === activeTab);
 
-        <div style="display:flex;gap:1.5rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:1.5rem">
-          <div class="input-group" style="flex:1;min-width:200px;margin-bottom:0">
-            <label for="fontFamily">Font Family</label>
-            <select id="fontFamily">
-              <option value="Orbitron">Orbitron (Futuristic)</option>
-              <option value="Inter">Inter (Clean)</option>
-              <option value="Poppins">Poppins (Friendly)</option>
-              <option value="Raleway">Raleway (Elegant)</option>
-              <option value="Space+Grotesk">Space Grotesk (Modern)</option>
-              <option value="Playfair+Display">Playfair Display (Classic)</option>
-              <option value="Space+Mono">Space Mono (Monospace)</option>
-            </select>
-          </div>
-          <div class="input-group" style="flex:0 0 auto;margin-bottom:0">
-            <label for="accentColor">Accent Color</label>
-            <div style="display:flex;align-items:center;gap:0.75rem;padding-top:0.35rem">
-              <input type="color" id="accentColor" value="#00ffff" class="color-picker">
-              <span id="accentColorHex" style="font-size:0.8rem;color:#00ffff">#00ffff</span>
-              <button type="button" id="resetAccentBtn" class="btn-small">Reset</button>
+      const handleCopyAll = () => {
+        const combined = filteredPrompts.map(p => p.text).join('\n\n');
+        if (combined) {
+          navigator.clipboard.writeText(combined);
+        }
+      };
+
+      if (!isAuth) {
+        return (
+          <div className="min-h-screen bg-[#0A0B0D] flex flex-col items-center justify-center p-4 font-sans text-slate-300">
+            <div className="max-w-md w-full bg-[#16191E] border border-slate-800 rounded-xl p-8 shadow-2xl transition-all">
+              <div className="flex flex-col items-center mb-8">
+                <div className="w-16 h-16 bg-[#0F1115] border border-slate-800 rounded-full flex items-center justify-center mb-6 text-2xl">
+                  🔒
+                </div>
+                <h1 className="text-2xl font-semibold text-white tracking-tight">PromptLibrary <span className="text-indigo-400">Premium</span></h1>
+                <p className="text-slate-500 mt-2 text-center text-sm">Enter your master PIN</p>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    placeholder="••••"
+                    value={pin}
+                    autoFocus
+                    onChange={e => setPin(e.target.value.replace(/[^0-9]/g, ''))}
+                    className="w-full bg-[#0A0B0D] border border-slate-800 text-slate-200 rounded-lg py-4 text-center text-3xl tracking-[1em] focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all placeholder-slate-600 font-mono"
+                  />
+                </div>
+                
+                {authError && (
+                  <p className="text-red-400 text-xs text-center">{authError}</p>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full bg-indigo-600 text-white font-semibold text-sm rounded-lg py-3 mt-4 hover:bg-indigo-500 transition-colors flex items-center justify-center gap-2"
+                >
+                  🔓 Enter Vault
+                </button>
+              </form>
             </div>
           </div>
-        </div>
+        );
+      }
 
-        <button type="button" id="generateBtn">Generate App</button>
-      </form>
+      return (
+        <div className="flex flex-col h-screen bg-[#0A0B0D] font-sans text-slate-300 overflow-hidden">
+          {/* Top Navigation Header */}
+          <header className="h-14 shrink-0 border-b border-slate-800 flex items-center justify-between px-6 bg-[#0F1115]">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center text-white font-bold">P</div>
+              <span className="font-semibold tracking-tight text-white">PromptLibrary <span className="text-indigo-400">Premium</span></span>
+            </div>
+            <div className="flex items-center space-x-6">
+              <div className="flex space-x-2">
+                <button 
+                  onClick={() => {
+                    setBuilderText('');
+                    document.getElementById('prompt-builder')?.focus();
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"
+                >
+                  + New Prompt
+                </button>
+                {filteredPrompts.length > 0 && (
+                  <button 
+                    onClick={handleCopyAll}
+                    className="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-white rounded transition-colors"
+                  >
+                    Copy All {activeTab}
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center space-x-3 pl-4 border-l border-slate-800">
+                <span className="text-xs text-slate-400">liquidlavaz@gmail.com</span>
+                <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] border border-slate-600 text-white">LL</div>
+                <button 
+                  onClick={() => setIsAuth(false)}
+                  className="text-xs text-slate-500 hover:text-slate-300 ml-2"
+                  title="Lock Vault"
+                >
+                  🔒
+                </button>
+              </div>
+            </div>
+          </header>
 
-      <div style="margin-top:1rem">
-        <button type="button" id="loadPreviousBtn" style="display:none">↩ Load Previous Session</button>
-      </div>
+          <div className="flex flex-1 overflow-hidden">
+            {/* Sidebar: Navigation */}
+            <aside className="w-56 border-r border-slate-800 bg-[#0F1115] flex flex-col shrink-0">
+              <nav className="p-4 flex flex-col space-y-1">
+                <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-2 px-2">Collections</div>
+                {CATEGORIES.map(cat => {
+                  const isActive = activeTab === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setActiveTab(cat.id)}
+                      className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
+                        isActive
+                          ? 'bg-slate-800 text-white font-medium'
+                          : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                      }`}
+                    >
+                      <span className="mr-3 text-lg leading-none">{cat.icon}</span> {cat.label}
+                      <span className="ml-auto text-xs opacity-50">{prompts.filter(p => p.category === cat.id).length}</span>
+                    </button>
+                  );
+                })}
+              </nav>
 
-      <div class="input-group" style="margin-top:2rem">
-        <label for="aiKey">OpenAI API Key <span style="font-weight:400;opacity:0.65">(optional — used in-browser only, never stored)</span></label>
-        <input type="password" id="aiKey" placeholder="sk-...">
-        <button type="button" id="aiGenerateBtn" style="margin-top:0.75rem">✦ Generate with AI</button>
-      </div>
-    </section>
+              <div className="mt-auto p-4 shrink-0">
+                <div className="bg-indigo-900/20 border border-indigo-500/30 rounded-lg p-3">
+                  <p className="text-[11px] text-indigo-300 font-medium mb-1">Pro Account Active</p>
+                  <p className="text-[10px] text-indigo-400/70">Access to 12,000+ words in modifier banks.</p>
+                </div>
+              </div>
+            </aside>
 
-    <!-- ASSETS PREVIEW -->
-    <section id="assets" class="section">
-      <h2>Assets</h2>
-      <div class="input-group">
-        <label for="assetUpload">Upload Images (added to your generated app)</label>
-        <input type="file" id="assetUpload" multiple accept="image/*">
-      </div>
-      <div id="assetGrid" class="grid"></div>
-    </section>
+            {/* Main Content: Feed */}
+            <main className="flex-1 bg-[#0A0B0D] overflow-hidden flex flex-col min-w-0">
+              <div className="p-6 overflow-y-auto space-y-4 h-full relative custom-scrollbar">
+                {filteredPrompts.length === 0 ? (
+                  <div className="py-20 text-center flex flex-col items-center justify-center opacity-70">
+                    <div className="text-4xl mb-4">🔍</div>
+                    <p className="text-slate-400 font-medium tracking-tight">No prompts found in this collection.</p>
+                    <p className="text-slate-500 text-xs mt-1">Draft one in the builder to get started.</p>
+                  </div>
+                ) : (
+                  filteredPrompts.map(prompt => {
+                    const cat = CATEGORIES.find(c => c.id === prompt.category) || CATEGORIES[0];
+                    return (
+                      <div
+                        key={prompt.id}
+                        className="bg-[#16191E] border border-slate-800 rounded-xl p-4 flex flex-col group transition-colors hover:border-slate-700"
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-center space-x-2">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${cat.bgClass} ${cat.colorClass}`}>
+                              {prompt.category}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              {new Date(prompt.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => startEditing(prompt)}
+                              className="text-[10px] text-slate-500 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              EDIT
+                            </button>
+                            <button 
+                              onClick={() => deletePrompt(prompt.id)}
+                              className="text-[10px] text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              DELETE
+                            </button>
+                            <CopyButton text={prompt.text} />
+                          </div>
+                        </div>
+                        <p className="text-sm text-slate-200 leading-relaxed italic break-words whitespace-pre-wrap">
+                          "{prompt.text}"
+                        </p>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </main>
 
-    <!-- GENERATED APP PREVIEW -->
-    <section id="preview" class="section">
-      <h2>Generated App Preview</h2>
-      <iframe id="previewFrame"></iframe>
-    </section>
+            {/* Right Sidebar: Builder & Word Bank */}
+            <aside className="w-72 border-l border-slate-800 bg-[#0F1115] flex flex-col shrink-0">
+              {/* Builder Section */}
+              <div className="p-4 border-b border-slate-800 shrink-0 flex flex-col gap-3">
+                <div className="flex justify-between items-center">
+                  <div className="text-[10px] uppercase tracking-wider text-slate-500">New Prompt Builder</div>
+                  <select 
+                    value={builderCategory}
+                    onChange={e => setBuilderCategory(e.target.value)}
+                    className="bg-[#0A0B0D] border border-slate-800 text-[10px] text-slate-300 rounded px-1.5 py-0.5 focus:outline-none focus:border-indigo-500"
+                  >
+                    {CATEGORIES.map(c => (
+                      <option key={c.id} value={c.id}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {TEMPLATES[builderCategory] && (
+                  <div className="flex flex-col gap-1.5 -mt-1">
+                    {TEMPLATES[builderCategory].map(t => (
+                      <button
+                        key={t.label}
+                        onClick={() => setBuilderText(t.text)}
+                        className="text-left shrink-0 px-2.5 py-1.5 text-[10px] bg-slate-800/50 hover:bg-slate-700/80 text-slate-400 hover:text-slate-200 rounded border border-slate-700/50 transition-colors truncate"
+                        title={t.text}
+                      >
+                        📝 {t.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                <textarea 
+                  id="prompt-builder"
+                  value={builderText}
+                  onChange={e => setBuilderText(e.target.value)}
+                  className="w-full h-32 bg-[#0A0B0D] border border-slate-800 rounded-lg p-3 text-xs text-slate-300 placeholder-slate-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-none custom-scrollbar" 
+                  placeholder="Start drafting your prompt here..."
+                />
+                
+                <div className="flex flex-col gap-1.5">
+                  <button 
+                    onClick={savePrompt}
+                    disabled={!builderText.trim()}
+                    className="w-full py-2 text-xs font-semibold bg-indigo-600 text-white rounded hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {editingId ? 'Update Prompt' : 'Save to Feed'}
+                  </button>
+                  {editingId && (
+                    <button
+                      onClick={() => {
+                        setEditingId(null);
+                        setBuilderText('');
+                      }}
+                      className="w-full py-1.5 text-[10px] text-slate-400 hover:text-slate-200 transition-colors"
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
+                </div>
+              </div>
 
-    <!-- SECTION REORDER PANEL (shown after generation) -->
-    <section id="reorder" class="section" style="display:none">
-      <h2>Section Order</h2>
-      <p class="section-subtitle">Drag sections to reorder — preview updates automatically</p>
-      <div id="sectionOrderList" class="section-order-list"></div>
-    </section>
-
-    <!-- DOWNLOAD & DEPLOY SECTION -->
-    <section id="download" class="section">
-      <h2>Download &amp; Deploy</h2>
-      <div class="input-group">
-        <label for="downloadFormat">Export Format</label>
-        <select id="downloadFormat">
-          <option value="html">Single HTML File (self-contained)</option>
-          <option value="zip">ZIP Project (HTML + Assets folder)</option>
-        </select>
-      </div>
-      <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center">
-        <button type="button" id="downloadBtn" disabled>⬇️ Download App</button>
-        <button type="button" id="deployBtn" disabled>🚀 Deploy App</button>
-      </div>
-      <p id="downloadStatus"></p>
-    </section>
-  </main>
-
-  <!-- FOOTER -->
-  <footer>
-    <img src="assets/logo-ln-circle.png" alt="LLD Logo" class="footer-logo">
-    <p>© 2026 Lavaz Life Designs. Built with Lavaz Studio.</p>
-  </footer>
-
-  <!-- DEPLOY MODAL -->
-  <div id="deployModal" class="modal-overlay" style="display:none">
-    <div class="modal-box">
-      <button class="modal-close" id="closeDeployModal">&times;</button>
-      <h2 style="text-align:center;margin-bottom:1.5rem;font-size:1.5rem">🚀 Deploy Your App</h2>
-      <div class="deploy-tabs">
-        <button class="deploy-tab active" data-tab="github">GitHub Pages</button>
-        <button class="deploy-tab" data-tab="netlify">Netlify</button>
-        <button class="deploy-tab" data-tab="manual">Quick Drop</button>
-      </div>
-
-      <!-- GitHub Pages Tab -->
-      <div id="tab-github" class="deploy-tab-content">
-        <p class="deploy-hint">Deploy via GitHub API. Requires a Personal Access Token with <strong>repo</strong> scope from <a href="https://github.com/settings/tokens" target="_blank">github.com/settings/tokens</a>.</p>
-        <div class="input-group">
-          <label for="ghToken">GitHub Personal Access Token</label>
-          <input type="password" id="ghToken" placeholder="ghp_...">
-        </div>
-        <div class="input-group">
-          <label for="ghRepo">Repository Name</label>
-          <input type="text" id="ghRepo" placeholder="my-app">
-        </div>
-        <button type="button" id="deployGithubBtn">Deploy to GitHub Pages</button>
-        <div id="githubDeployStatus" class="deploy-status"></div>
-      </div>
-
-      <!-- Netlify Tab -->
-      <div id="tab-netlify" class="deploy-tab-content" style="display:none">
-        <p class="deploy-hint">Deploy via Netlify API. Get a Personal Access Token from <a href="https://app.netlify.com/user/applications" target="_blank">app.netlify.com/user/applications</a>.</p>
-        <div class="input-group">
-          <label for="netlifyToken">Netlify Access Token</label>
-          <input type="password" id="netlifyToken" placeholder="your-netlify-token">
-        </div>
-        <div class="input-group">
-          <label for="netlifySiteName">Site Name (optional, must be unique)</label>
-          <input type="text" id="netlifySiteName" placeholder="my-awesome-site">
-        </div>
-        <button type="button" id="deployNetlifyBtn">Deploy to Netlify</button>
-        <div id="netlifyDeployStatus" class="deploy-status"></div>
-      </div>
-
-      <!-- Manual / Quick Drop Tab -->
-      <div id="tab-manual" class="deploy-tab-content" style="display:none">
-        <div style="display:flex;flex-direction:column;gap:1.25rem">
-          <div class="deploy-option-card">
-            <h3>⚡ Netlify Drop</h3>
-            <p>1. Click "Download" below to get your HTML file<br>2. Open <a href="https://app.netlify.com/drop" target="_blank">app.netlify.com/drop</a><br>3. Drag &amp; drop your file — live in seconds, no account needed</p>
+              {/* Word Bank Section */}
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="p-4 flex justify-between items-center shrink-0">
+                  <div className="text-[10px] uppercase tracking-wider text-slate-500">Premium Word Banks</div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-5 custom-scrollbar">
+                  {Object.entries(WORD_BANKS).map(([category, words]) => (
+                    <div key={category}>
+                      <h4 className="text-[11px] font-semibold text-slate-400 mb-2">{category}</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {words.map(word => (
+                          <button 
+                            key={word}
+                            onClick={() => appendToBuilder(word)}
+                            className="px-2 py-1 text-[10px] bg-slate-800 border border-slate-700 text-slate-300 rounded hover:border-indigo-500 transition-colors text-left"
+                          >
+                            {word}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </aside>
           </div>
-          <div class="deploy-option-card">
-            <h3>▲ Vercel Deploy</h3>
-            <p>1. Download your app<br>2. Visit <a href="https://vercel.com/new" target="_blank">vercel.com/new</a><br>3. Import from GitHub or drag your project folder</p>
-          </div>
-          <div class="deploy-option-card">
-            <h3>📖 GitHub Pages (Manual)</h3>
-            <p>1. Create a new GitHub repository<br>2. Upload your <code>index.html</code> to the root<br>3. Settings → Pages → Deploy from branch → main</p>
-          </div>
-        </div>
-        <button type="button" id="downloadForDeployBtn" style="margin-top:1.5rem;width:100%">⬇️ Download App Now</button>
-      </div>
-    </div>
-  </div>
 
-  <!-- JSZip for ZIP export -->
-  <script src="jszip.min.js"></script>
-  <!-- App logic -->
-  <script src="app.js"></script>
+          {/* Bottom Status Bar */}
+          <footer className="h-8 shrink-0 border-t border-slate-800 bg-[#0F1115] px-4 flex items-center justify-between text-[10px] text-slate-500">
+            <div className="flex space-x-4">
+              <span>Session: <span className="text-emerald-500">Verified</span></span>
+              <span>Local Sync: <span className="text-emerald-500">Saved</span></span>
+            </div>
+            <div>Ver 2.4.1 Premium Edition</div>
+          </footer>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
 </body>
 </html>
